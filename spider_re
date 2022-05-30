@@ -1,0 +1,65 @@
+#爬取电影天堂最新电影链接并写入csv文件
+import requests
+import re
+import csv
+
+#爬取豆瓣top250信息并写入csv文件
+# # 获取页面信息
+# for n in range(10):
+#     url = f'https://movie.douban.com/top250?start={25*n}&filter='
+#     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+#                              'Chrome/103.0.5042.0 Safari/537.36'}
+#     resp = requests.get(url, headers=headers)
+#     page_content = resp.text
+#     # 解析数据
+#     obj = re.compile(r'<li>.*?<div class="item">.*?<em class="">(?P<rank>.*?)</em>.*?'
+#                      r'<span class="title">(?P<title>.*?)'
+#                      r'</span>.*?<p class="">.*?<br>(?P<year>.*?)'
+#                      r'&nbsp.*?<span class="rating_num" property="v:average">(?P<score>.*?)'
+#                      r'</span>.*?<span>(?P<people>.*?)</span>', re.S)
+#     # 匹配数据
+#     result = obj.finditer(page_content)
+#     # 存储数据
+#     f = open('data.csv', mode='a')
+#     csvwriter = csv.writer(f)
+#     for it in result:
+#         print(it.group('rank'))
+#         print(it.group('title'))
+#         print(it.group('year').strip())
+#         print(it.group('score'))
+#         print(it.group('people'))
+#         dic = it.groupdict()
+#         dic['year'] = dic['year'].strip()
+#         csvwriter.writerow(dic.values())
+#     f.close()
+#     # 拓展，改变参数获取更多排名
+
+
+# 定位
+domain = 'https://m.dytt8.net/index2.htm'
+domain1 = 'https://m.dytt8.net'
+child_href_list = []
+resp = requests.get(domain, verify=False)
+resp.encoding = 'gb2312'
+# print(resp.text)
+obj = re.compile(r"<ul>.*?<a href='/html/gndy/jddy/20160320/50523.html'>IMDB评分8分左右影片500余部</a><br/>(?P<ul>.*?)</ul>",
+                 re.S)
+obj1 = re.compile(r"<a href='(?P<href>.*?)'>", re.S)
+obj2 = re.compile(r'<br />◎片　　名(?P<title>.*?)<br />.*?<a target="_blank" href="(?P<download>.*?)">', re.S)
+result = obj.finditer(resp.text)
+for it in result:
+    ul = it.group('ul')
+    result1 = obj1.finditer(ul)
+    for itt in result1:
+        child_href = domain1 + itt.group('href')
+        child_href_list.append(child_href)
+for href in child_href_list:
+    child_resp = requests.get(href, verify=False)
+    child_resp.encoding = 'GBK'
+    with open('data.csv', mode='a',newline='') as f:
+        csvwriter = csv.writer(f)
+        result3 = obj2.finditer(child_resp.text)
+        for it in result3:
+            dic = it.groupdict()
+            dic['title'] = dic['title'].strip()
+            csvwriter.writerow(dic.values())
