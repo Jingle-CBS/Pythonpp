@@ -1,0 +1,100 @@
+# 靓仔超级无敌批量发送邮件1.0版本，实现基本功能，从excel读取内容（包含附件）并发送。
+# 靓仔超级无敌批量发送邮件1.1版本，多线程版本（线程池）。
+# 靓仔超级无敌批量发送邮件1.2版本，加入装饰器。
+# 靓仔超级无敌批量发送邮件1.3版本，拆分功能，封装函数。
+# 靓仔超级无敌批量发送邮件1.4版本，动态传参，推导式。
+# 靓仔超级无敌批量发送邮件1.5版本，zip函数应用，进度条包。
+# 靓仔超级无敌批量发送邮件1.6版本，各种小修改：nonloacl函数（命名空间、作用域）。
+# 靓仔超级无敌批量发送邮件2.0版本可视化（暂未开工）。
+# 清华py源pip install -i https://pypi.tuna.tsinghua.edu.cn/simple some-package
+
+from concurrent.futures import ThreadPoolExecutor
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import openpyxl
+import time
+from tqdm import tqdm
+
+# 邮件服务器域名（自行修改）
+EMAIL_HOST = 'smtp.126.com'
+# 邮件服务端口（通常是465）
+EMAIL_PORT = 465
+# 登录邮件服务器的账号（自行修改）
+EMAIL_USER = 'jing1e@126.com'
+# 开通SMTP服务的授权码（自行修改）YE
+EMAIL_AUTH = 'TJRGIYEMOGJWOL'
+# 统计发送邮件计数
+counter = 0
+
+
+def record_time(func):
+    def wrapper(*arg, **kwarg):
+        start_time = time.time()
+        result = func(*arg, **kwarg)
+        end_time = time.time()
+        print(f'发送耗时: {end_time - start_time:.3f}秒.')
+        return result
+
+    return wrapper
+
+
+def read_xls(xls_name, from_user_init):
+    # 获取工作簿
+    wb = openpyxl.load_workbook(xls_name)
+    # 获取工作表
+    sheet = wb.worksheets[0]
+    # 列表生成式获取to_user,filename,subject,content值，zip打包
+    to_user_list = [sheet[f'A{row_ch}'].value for row_ch in range(2, sheet.max_row + 1)]
+    filename_list = [sheet[f'B{row_ch}'].value for row_ch in range(2, sheet.max_row + 1)]
+    subject_list = [sheet[f'C{row_ch}'].value for row_ch in range(2, sheet.max_row + 1)]
+    content_list = [sheet[f'D{row_ch}'].value for row_ch in range(2, sheet.max_row + 1)]
+    from_user_list = [from_user_init] * len(to_user_list)
+    xls = zip(from_user_list, to_user_list, filename_list, subject_list, content_list)
+    return xls
+
+
+@record_time
+def send_email(from_user='', to_user='', filename='', content='', subject=''):
+    # 构建email
+    email = MIMEMultipart()
+    email['From'] = from_user
+    email['To'] = to_user
+    email['Subject'] = subject
+    message = MIMEText(content, 'plain', 'utf-8')
+    email.attach(message)
+    # 构建附件
+    attachment = MIMEText(open(filename, 'rb').read(), 'base64', 'utf-8')
+    attachment['content-type'] = 'application/octet-stream'
+    attachment['content-disposition'] = f'attachment; filename="{filename}"'
+    email.attach(attachment)
+    # 构建smtp对象
+    smtp = smtplib.SMTP_SSL(EMAIL_HOST, EMAIL_PORT)
+    smtp.login(EMAIL_USER, EMAIL_AUTH)
+    smtp.sendmail(from_user, to_user.split(';'), email.as_string())
+    print(f'您的邮件已经由jing1e@126.com发送至{to_user}')
+    print(f'{to_user}的附件为{filename}')
+
+
+def main():
+    print('---------- 开始发送邮件！----------')
+    start = time.time()
+    xls_name = '批量发送清单.xlsx'
+    from_user_init = 'jing1e@126.com'
+
+    # 线程池启动
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        send_xls = read_xls(xls_name, from_user_init)
+        for item in tqdm(list(send_xls), desc=' 发送列表读取 '):
+            spans = ['from_user', 'to_user', 'filename', 'content', 'subject']
+            dict_send = dict(zip(spans, item))
+            pool.submit(send_email, **dict_send)
+            global counter
+            counter = counter + 1
+    end = time.time()
+    print(f'发送总耗时: {end - start:.3f}秒.')
+    print(f'----------您的{counter}封邮件已经发完！----------')
+
+
+if __name__ == '__main__':
+    main()
