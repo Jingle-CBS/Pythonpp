@@ -1,0 +1,30 @@
+#处理paasid的脚本
+import openpyxl
+
+# 加载一个工作簿 ---> Workbook
+wb = openpyxl.load_workbook('rio.xlsx')
+# 获取工作表的名字
+print(wb.sheetnames)
+# 获取工作表 ---> Worksheet
+sheet = wb.worksheets[0]
+# 获得单元格的范围
+print(sheet.dimensions)
+# 获得行数和列数
+print(sheet.max_row, sheet.max_column)
+demo={}
+# ip = [set(eval(sheet[f'B{row_ch}'].value)) for row_ch in range(2, sheet.max_row + 1)]
+# paasid = [sheet[f'A{row_ch}'].value for row_ch in range(2, sheet.max_row + 1)]
+# rio = dict(zip(paasid, ip))
+for row_ch in range(2, sheet.max_row + 1):
+    passid=sheet[f'A{row_ch}'].value
+    ip=eval(sheet[f'B{row_ch}'].value)
+    if demo.get(passid) == None:
+        demo.setdefault(passid,ip)
+    else:
+        for i in ip:
+            if i in demo.get(passid):
+                pass
+            else:
+                print(demo.setdefault(passid,))
+                demo.setdefault(passid,[]).append(i)
+print(demo)
