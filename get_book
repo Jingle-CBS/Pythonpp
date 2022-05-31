@@ -1,0 +1,58 @@
+from bs4 import BeautifulSoup
+import requests
+from tqdm.contrib import tzip
+import time
+
+
+def record_time(func):
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        print(f'{func.__name__}执行时间: {end - start:.3f}秒')
+        return result
+
+    return wrapper
+
+
+@record_time
+def get_book(url):
+    link = requests.get(url)
+    # 获取页面对象
+    soup_link = BeautifulSoup(link.content, 'html5lib')
+    # 获取目录对象
+    link_all = soup_link.find_all('dd')
+    # 得到小说名称
+    title = soup_link.find('div', {'id': 'info'}).find('h1').text
+    print(f'--------开始下载小说《{title}》--------')
+    # 爬取章节部分链接
+    lis = [i.find('a')['href'].split('/')[-1] for i in link_all]
+    # 整合链接
+    url_lis = [(url + str(i)) for i in lis]
+    # 爬取并整理章节标题并去掉两端空白
+    chap = list(map(str.strip, [i.text for i in link_all]))
+    # 用小说名称将TXT文档进行命名
+    with open('%s.txt' % title, 'w') as file:
+        # 将章节和正文内容逐个存放入TXT文档
+        for i, j in tzip(url_lis, chap):
+            url_link = requests.get(i)
+            soup_lik = BeautifulSoup(url_link.content, 'html5lib')
+            a = soup_lik.find('div', {'class': 'content'})
+            # 去掉br标签
+            for e in a.find_all('br'):
+                e.extract()
+            # 写入文件
+            file.write(j)
+            file.write('\n')
+            file.write(a.text)
+            file.write('\n')
+
+    return print(f'--------《{title}》已下载完毕了--------')
+
+
+def main():
+    get_book('https://www.biqugesk.org/biquge/89538/')
+
+
+if __name__ == '__main__':
+    main()
